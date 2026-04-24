@@ -1,52 +1,60 @@
 import { md5 } from 'js-md5';
 
-export interface YiPayConfig {
-  apiUrl: string;
-  pid: string;
-  key: string;
+export interface PayFMConfig {
+  apiBaseUrl: string;
+  merchantNum: string;
+  secretKey: string;
+  payType: string;
 }
 
-export interface PayOrderParams {
-  outTradeNo: string;
+export interface CreateOrderParams {
+  orderNo: string;
+  amount: string;
   notifyUrl: string;
-  returnUrl: string;
-  name: string;
-  money: string;
-  type: 'alipay' | 'wxpay' | 'qqpay';
 }
 
-export class YiPay {
-  constructor(private config: YiPayConfig) {}
+/**
+ * 支付FM 接口封装
+ * 文档: https://doc.支付fm.com/
+ */
+export class PayFM {
+  constructor(private config: PayFMConfig) {}
 
-  createPayUrl(params: PayOrderParams): string {
-    // 支付FM签名规则: MD5(pid + out_trade_no + money + notify_url + key)
-    const signStr = this.config.pid + params.outTradeNo + params.money + params.notifyUrl + this.config.key;
+  /**
+   * 构建创建订单的完整 URL（参数放在 Query 中）
+   * 签名规则: MD5(商户号 + 商户订单号 + 支付金额 + 异步通知地址 + 接入密钥)
+   */
+  createOrderUrl(params: CreateOrderParams): string {
+    const signStr = this.config.merchantNum + params.orderNo + params.amount + params.notifyUrl + this.config.secretKey;
     const sign = md5(signStr);
 
-    const data: Record<string, string> = {
-      pid: this.config.pid,
-      type: params.type,
-      out_trade_no: params.outTradeNo,
-      notify_url: params.notifyUrl,
-      return_url: params.returnUrl,
-      name: params.name,
-      money: params.money,
+    const query = new URLSearchParams({
+      merchantNum: this.config.merchantNum,
+      orderNo: params.orderNo,
+      amount: params.amount,
+      notifyUrl: params.notifyUrl,
+      payType: this.config.payType,
       sign,
-      sign_type: 'MD5',
-    };
+    });
 
-    const query = new URLSearchParams(data).toString();
-    const url = new URL('submit.php', this.config.apiUrl);
-    return `${url.toString()}?${query.toString()}`;
+    return `${this.config.apiBaseUrl}/startOrder?${query.toString()}`;
   }
 
+  /**
+   * 回调验签
+   * 规则与请求签名一致: MD5(merchantNum + orderNo + amount + notifyUrl + secretKey)
+   * 注意: 回调参数名可能与请求时略有差异，此处做兼容处理
+   */
   verifyCallback(params: Record<string, string>): boolean {
     const sign = params.sign;
     if (!sign) return false;
 
-    // 回调验签同样使用纯值拼接规则
-    // 优先使用回调参数中的值，若 notify_url 缺失则尝试用原始 notify_url（此处由调用方保证）
-    const signStr = params.pid + params.out_trade_no + params.money + params.notify_url + this.config.key;
+    const merchantNum = params.merchantNum || this.config.merchantNum;
+    const orderNo = params.orderNo || '';
+    const amount = params.amount || '';
+    const notifyUrl = params.notifyUrl || '';
+
+    const signStr = merchantNum + orderNo + amount + notifyUrl + this.config.secretKey;
     return md5(signStr) === sign;
   }
 }

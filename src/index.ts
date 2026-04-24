@@ -9,9 +9,10 @@ export type Env = {
   Bindings: {
     DB: D1Database;
     BASE_URL: string;
-    YIPAY_URL: string;
-    YIPAY_PID: string;
-    YIPAY_KEY: string;
+    API_BASE_URL: string;
+    MERCHANT_NUM: string;
+    SECRET_KEY: string;
+    PAY_TYPE: string;
   };
   Variables: {
     prisma: PrismaClient;
@@ -22,6 +23,7 @@ const app = new Hono<Env>();
 
 app.use(logger());
 
+// 每个请求创建 PrismaClient（D1 适配器需要绑定 env.DB）
 app.use(async (c, next) => {
   const adapter = new PrismaD1(c.env.DB);
   c.set('prisma', new PrismaClient({ adapter }));

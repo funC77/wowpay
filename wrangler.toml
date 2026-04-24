@@ -14,8 +14,10 @@ directory = "./public"
 
 # 非敏感环境变量
 [vars]
-BASE_URL = "https://model.wochengtv.net:9312"
-YIPAY_URL = "https://api-4uin34any8sg.zhifu.fm.it88168.com/api/submit.php"
-YIPAY_PID = "638064777360719872"
+BASE_URL = "https://wowpay.cursor02.workers.dev"
+API_BASE_URL = "https://api.你的支付fm域名.com"
+MERCHANT_NUM = "你的商户号"
+PAY_TYPE = "alipay"
 
-# 敏感变量请使用 wrangler secret put YIPAY_KEY
+# 敏感变量请在 Dashboard 设置，或在本地执行:
+# npx wrangler secret put SECRET_KEY
