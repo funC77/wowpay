@@ -8,68 +8,107 @@ export interface PayFMConfig {
 }
 
 export interface CreateOrderParams {
-  outTradeNo: string;
-  money: string;
+  orderNo: string;
+  amount: string;
   notifyUrl: string;
   returnUrl: string;
-  name: string;
 }
 
-function sign(params: Record<string, string>, secretKey: string): string {
-  // 易支付标准签名规则：
-  // 1. 过滤空值参数
-  // 2. 排除 sign 和 sign_type
-  // 3. 按参数名字母顺序排序
-  // 4. key=value&key=value 拼接
-  // 5. 末尾直接拼接密钥（无 & 分隔）
-  // 6. MD5 小写
+/**
+ * 支付FM /startOrder 官方接口签名规则
+ * sign = MD5(merchantNum + orderNo + amount + notifyUrl + secretKey)
+ */
+function startOrderSign(params: {
+  merchantNum: string;
+  orderNo: string;
+  amount: string;
+  notifyUrl: string;
+  secretKey: string;
+}): string {
+  const signStr =
+    params.merchantNum + params.orderNo + params.amount + params.notifyUrl + params.secretKey;
+  console.log('[PayFM] signStr:', signStr);
+  return md5(signStr);
+}
+
+/**
+ * 易支付标准签名规则（用于回调验签兼容）
+ */
+function yiPaySign(params: Record<string, string>, secretKey: string): string {
   const filtered = Object.entries(params)
     .filter(([, v]) => v !== '')
     .filter(([k]) => k !== 'sign' && k !== 'sign_type')
     .sort(([a], [b]) => a.localeCompare(b));
 
   const signStr = filtered.map(([k, v]) => `${k}=${v}`).join('&') + secretKey;
-  console.log('[PayFM] signStr:', signStr);
   return md5(signStr);
 }
 
 /**
- * 支付FM /submit.php 接口封装（易支付兼容模式）
+ * 支付FM /startOrder 官方接口封装
  */
 export class PayFM {
   constructor(private config: PayFMConfig) {}
 
-  createOrderUrl(params: CreateOrderParams): string {
-    // 构造参与签名的参数（除 sign/sign_type 外）
-    const signParams: Record<string, string> = {
-      pid: this.config.merchantNum,
-      type: this.config.payType,
-      out_trade_no: params.outTradeNo,
-      notify_url: params.notifyUrl,
-      return_url: params.returnUrl,
-      name: params.name,
-      money: params.money,
-    };
-
-    const signValue = sign(signParams, this.config.secretKey);
-
-    // 最终 URL 参数需包含 sign 和 sign_type
-    const query = new URLSearchParams({
-      ...signParams,
-      sign: signValue,
-      sign_type: 'MD5',
+  /**
+   * 创建订单，返回支付跳转 URL
+   */
+  async createOrder(params: CreateOrderParams): Promise<string> {
+    const signValue = startOrderSign({
+      merchantNum: this.config.merchantNum,
+      orderNo: params.orderNo,
+      amount: params.amount,
+      notifyUrl: params.notifyUrl,
+      secretKey: this.config.secretKey,
     });
 
-    return `${this.config.apiBaseUrl}/submit.php?${query.toString()}`;
+    const query = new URLSearchParams({
+      merchantNum: this.config.merchantNum,
+      orderNo: params.orderNo,
+      amount: params.amount,
+      notifyUrl: params.notifyUrl,
+      returnUrl: params.returnUrl,
+      payType: this.config.payType,
+      sign: signValue,
+    });
+
+    const url = `${this.config.apiBaseUrl}/startOrder?${query.toString()}`;
+    console.log('[PayFM] startOrder URL:', url);
+
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+    });
+
+    const result = (await resp.json()) as {
+      success: boolean;
+      msg: string;
+      code: number;
+      data?: {
+        id: string;
+        payUrl: string;
+        extendParams: unknown;
+      };
+    };
+
+    console.log('[PayFM] startOrder response:', result);
+
+    if (!result.success || !result.data?.payUrl) {
+      throw new Error(result.msg || '创建订单失败');
+    }
+
+    return result.data.payUrl;
   }
 
   verifyCallback(params: Record<string, string>): boolean {
     const receivedSign = params.sign;
     if (!receivedSign) return false;
 
-    // 回调验签同样使用易支付规则
+    // 回调验签使用易支付规则（兼容模式）
     const { sign: _s, sign_type: _st, ...signParams } = params;
-    const computed = sign(signParams, this.config.secretKey);
+    const computed = yiPaySign(signParams, this.config.secretKey);
 
     console.log('[PayFM] callback verify:', { received: receivedSign, computed });
     return computed === receivedSign;

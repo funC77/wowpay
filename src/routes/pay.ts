@@ -32,7 +32,7 @@ app.get('/pay', async (c) => {
 
   const env = c.env;
 
-  // 2. 构造支付FM跳转地址（/submit.php 直连模式）
+  // 2. 调用支付FM /startOrder 官方接口创建订单并获取支付跳转地址
   const payFm = new PayFM({
     apiBaseUrl: env.API_BASE_URL,
     merchantNum: env.MERCHANT_NUM,
@@ -40,12 +40,11 @@ app.get('/pay', async (c) => {
     payType: env.PAY_TYPE,
   });
 
-  const orderUrl = payFm.createOrderUrl({
-    outTradeNo: orderId,
-    money: Number(amount).toFixed(2),
+  const orderUrl = await payFm.createOrder({
+    orderNo: orderId,
+    amount: Number(amount).toFixed(2),
     notifyUrl: `${env.BASE_URL}/api/pay/callback`,
     returnUrl: `${env.BASE_URL}/success.html?orderId=${orderId}`,
-    name: '平台额度充值',
   });
 
   // 直接跳转到支付FM收银台
