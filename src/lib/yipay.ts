@@ -15,26 +15,33 @@ export interface CreateOrderParams {
   name: string;
 }
 
+function sign(params: Record<string, string>, secretKey: string): string {
+  // 易支付标准签名规则：
+  // 1. 过滤空值参数
+  // 2. 排除 sign 和 sign_type
+  // 3. 按参数名字母顺序排序
+  // 4. key=value&key=value 拼接
+  // 5. 末尾直接拼接密钥（无 & 分隔）
+  // 6. MD5 小写
+  const filtered = Object.entries(params)
+    .filter(([, v]) => v !== '')
+    .filter(([k]) => k !== 'sign' && k !== 'sign_type')
+    .sort(([a], [b]) => a.localeCompare(b));
+
+  const signStr = filtered.map(([k, v]) => `${k}=${v}`).join('&') + secretKey;
+  console.log('[PayFM] signStr:', signStr);
+  return md5(signStr);
+}
+
 /**
- * 支付FM /submit.php 接口封装
- * 参数名使用易支付风格（pid/out_trade_no/money/notify_url），
- * 签名规则按支付FM文档：MD5(商户号 + 商户订单号 + 支付金额 + 异步通知地址 + 接入密钥)
+ * 支付FM /submit.php 接口封装（易支付兼容模式）
  */
 export class PayFM {
   constructor(private config: PayFMConfig) {}
 
   createOrderUrl(params: CreateOrderParams): string {
-    // 支付FM签名规则：商户号 + 商户订单号 + 支付金额 + 异步通知地址 + 接入密钥
-    const signStr = this.config.merchantNum + params.outTradeNo + params.money + params.notifyUrl + this.config.secretKey;
-    const sign = md5(signStr);
-
-    console.log('[PayFM] signStr preview:', {
-      prefix: this.config.merchantNum + params.outTradeNo + params.money + params.notifyUrl,
-      sign,
-    });
-
-    // 使用易支付风格参数名，与 /submit.php 接口兼容
-    const query = new URLSearchParams({
+    // 构造参与签名的参数（除 sign/sign_type 外）
+    const signParams: Record<string, string> = {
       pid: this.config.merchantNum,
       type: this.config.payType,
       out_trade_no: params.outTradeNo,
@@ -42,7 +49,14 @@ export class PayFM {
       return_url: params.returnUrl,
       name: params.name,
       money: params.money,
-      sign,
+    };
+
+    const signValue = sign(signParams, this.config.secretKey);
+
+    // 最终 URL 参数需包含 sign 和 sign_type
+    const query = new URLSearchParams({
+      ...signParams,
+      sign: signValue,
       sign_type: 'MD5',
     });
 
@@ -50,19 +64,14 @@ export class PayFM {
   }
 
   verifyCallback(params: Record<string, string>): boolean {
-    const sign = params.sign;
-    if (!sign) return false;
+    const receivedSign = params.sign;
+    if (!receivedSign) return false;
 
-    // 回调验签同样使用支付FM规则
-    const pid = params.pid || this.config.merchantNum;
-    const outTradeNo = params.out_trade_no || '';
-    const money = params.money || '';
-    const notifyUrl = params.notify_url || '';
+    // 回调验签同样使用易支付规则
+    const { sign: _s, sign_type: _st, ...signParams } = params;
+    const computed = sign(signParams, this.config.secretKey);
 
-    const signStr = pid + outTradeNo + money + notifyUrl + this.config.secretKey;
-    const computed = md5(signStr);
-
-    console.log('[PayFM] callback verify:', { received: sign, computed });
-    return computed === sign;
+    console.log('[PayFM] callback verify:', { received: receivedSign, computed });
+    return computed === receivedSign;
   }
 }
