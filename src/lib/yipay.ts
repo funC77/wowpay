@@ -8,62 +8,58 @@ export interface PayFMConfig {
 }
 
 export interface CreateOrderParams {
-  orderNo: string;
-  amount: string;
+  outTradeNo: string;
+  money: string;
   notifyUrl: string;
+  returnUrl: string;
+  name: string;
 }
 
 /**
- * 支付FM 接口封装
+ * 支付FM /submit.php 接口封装
+ * 参数名使用易支付风格（pid/out_trade_no/money/notify_url），
+ * 签名规则按支付FM文档：MD5(商户号 + 商户订单号 + 支付金额 + 异步通知地址 + 接入密钥)
  */
 export class PayFM {
   constructor(private config: PayFMConfig) {}
 
-  /**
-   * 构建创建订单的完整 URL
-   * 使用 /submit.php（支付FM实际跳转接口）
-   * 签名规则: MD5(商户号 + 商户订单号 + 支付金额 + 异步通知地址 + 接入密钥)
-   */
   createOrderUrl(params: CreateOrderParams): string {
-    // 金额去除末尾无意义的 .00，保持与后台一致
-    const cleanAmount = parseFloat(params.amount).toString();
-
-    const signStr = this.config.merchantNum + params.orderNo + cleanAmount + params.notifyUrl + this.config.secretKey;
+    // 支付FM签名规则：商户号 + 商户订单号 + 支付金额 + 异步通知地址 + 接入密钥
+    const signStr = this.config.merchantNum + params.outTradeNo + params.money + params.notifyUrl + this.config.secretKey;
     const sign = md5(signStr);
 
-    // 调试日志：打印签名字符串（不含密钥）
     console.log('[PayFM] signStr preview:', {
-      prefix: this.config.merchantNum + params.orderNo + cleanAmount + params.notifyUrl,
+      prefix: this.config.merchantNum + params.outTradeNo + params.money + params.notifyUrl,
       sign,
     });
 
+    // 使用易支付风格参数名，与 /submit.php 接口兼容
     const query = new URLSearchParams({
-      merchantNum: this.config.merchantNum,
-      orderNo: params.orderNo,
-      amount: cleanAmount,
-      notifyUrl: params.notifyUrl,
-      payType: this.config.payType,
+      pid: this.config.merchantNum,
+      type: this.config.payType,
+      out_trade_no: params.outTradeNo,
+      notify_url: params.notifyUrl,
+      return_url: params.returnUrl,
+      name: params.name,
+      money: params.money,
       sign,
+      sign_type: 'MD5',
     });
 
-    // 使用 /submit.php（支付FM实际接口）
     return `${this.config.apiBaseUrl}/submit.php?${query.toString()}`;
   }
 
-  /**
-   * 回调验签
-   */
   verifyCallback(params: Record<string, string>): boolean {
     const sign = params.sign;
     if (!sign) return false;
 
-    const merchantNum = params.merchantNum || this.config.merchantNum;
-    const orderNo = params.orderNo || '';
-    const amount = params.amount || '';
-    const notifyUrl = params.notifyUrl || '';
-    const cleanAmount = parseFloat(amount).toString();
+    // 回调验签同样使用支付FM规则
+    const pid = params.pid || this.config.merchantNum;
+    const outTradeNo = params.out_trade_no || '';
+    const money = params.money || '';
+    const notifyUrl = params.notify_url || '';
 
-    const signStr = merchantNum + orderNo + cleanAmount + notifyUrl + this.config.secretKey;
+    const signStr = pid + outTradeNo + money + notifyUrl + this.config.secretKey;
     const computed = md5(signStr);
 
     console.log('[PayFM] callback verify:', { received: sign, computed });

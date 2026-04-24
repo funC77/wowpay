@@ -6,7 +6,7 @@ import { generateCode } from '../lib/redeemCode';
 const app = new Hono<Env>();
 
 /**
- * 创建支付订单并跳转至支付FM收银台
+ * 创建支付订单并直接跳转至支付FM收银台
  * GET /api/pay?user_id=xxx&amount=xxx
  */
 app.get('/pay', async (c) => {
@@ -31,10 +31,8 @@ app.get('/pay', async (c) => {
   });
 
   const env = c.env;
-  const notifyUrl = `${env.BASE_URL}/api/pay/callback`;
-  const fixedAmount = Number(amount).toFixed(2);
 
-  // 2. 调用支付FM 创建订单接口（POST，参数在 Query 中）
+  // 2. 构造支付FM跳转地址（/submit.php 直连模式）
   const payFm = new PayFM({
     apiBaseUrl: env.API_BASE_URL,
     merchantNum: env.MERCHANT_NUM,
@@ -43,38 +41,15 @@ app.get('/pay', async (c) => {
   });
 
   const orderUrl = payFm.createOrderUrl({
-    orderNo: orderId,
-    amount: fixedAmount,
-    notifyUrl,
+    outTradeNo: orderId,
+    money: Number(amount).toFixed(2),
+    notifyUrl: `${env.BASE_URL}/api/pay/callback`,
+    returnUrl: `${env.BASE_URL}/success.html?orderId=${orderId}`,
+    name: '平台额度充值',
   });
 
-  try {
-    const response = await fetch(orderUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-    });
-
-    const result = (await response.json()) as {
-      success: boolean;
-      msg?: string;
-      code?: number;
-      data?: { id?: string; payUrl?: string };
-    };
-
-    // 3. 成功则跳转到支付FM返回的 payUrl
-    if (result.success && result.data?.payUrl) {
-      return c.redirect(result.data.payUrl);
-    }
-
-    // 失败返回支付FM的报错信息
-    console.error('支付FM下单失败', result);
-    return c.text(result.msg || '创建订单失败', 400);
-  } catch (err) {
-    console.error('支付FM请求异常', err);
-    return c.text('支付网关请求失败', 502);
-  }
+  // 直接跳转到支付FM收银台
+  return c.redirect(orderUrl);
 });
 
 /**
@@ -93,14 +68,14 @@ app.post('/pay/callback', async (c) => {
     payType: env.PAY_TYPE,
   });
 
-  // 验签（支付FM回调同样使用 MD5 签名）
+  // 验签
   if (!payFm.verifyCallback(params)) {
     console.error('支付FM回调签名验证失败', params);
     return c.text('fail', 400);
   }
 
-  // 支付FM回调通常用 orderNo 作为订单号
-  const orderId = params.orderNo;
+  // 回调订单号字段为 out_trade_no
+  const orderId = params.out_trade_no;
   if (!orderId) {
     return c.text('fail', 400);
   }
@@ -112,7 +87,7 @@ app.post('/pay/callback', async (c) => {
 
   if (!order) {
     console.error('回调订单不存在', orderId);
-    return c.text('success'); // 告诉支付FM已收到，避免重复通知
+    return c.text('success');
   }
 
   if (order.status === 'paid' || order.redeemCode) {
