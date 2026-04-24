@@ -15,8 +15,8 @@ directory = "./public"
 # 非敏感环境变量
 [vars]
 BASE_URL = "https://wowpay.cursor02.workers.dev"
-API_BASE_URL = "https://api.你的支付fm域名.com"
-MERCHANT_NUM = "你的商户号"
+API_BASE_URL = "https://api-4uin34any8sg.zhifu.fm.it88168.com/api"
+MERCHANT_NUM = "638064777360719872"
 PAY_TYPE = "alipay"
 
 # 敏感变量请在 Dashboard 设置，或在本地执行:
