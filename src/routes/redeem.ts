@@ -1,14 +1,14 @@
-import { Router } from 'express';
-import { getPrisma } from '../lib/prisma';
+import { Hono } from 'hono';
+import type { Env } from '../index';
 
-const router = Router();
+const app = new Hono<Env>();
 
-router.get('/redeem/verify', async (req, res) => {
-  const prisma = getPrisma();
-  const code = req.query.code as string;
+app.get('/redeem/verify', async (c) => {
+  const prisma = c.get('prisma');
+  const code = c.req.query('code');
 
   if (!code) {
-    return res.status(400).json({ error: '缺少兑换码' });
+    return c.json({ error: '缺少兑换码' }, 400);
   }
 
   const normalized = code.trim().toUpperCase().replace(/-/g, '');
@@ -19,26 +19,26 @@ router.get('/redeem/verify', async (req, res) => {
   });
 
   if (!record) {
-    return res.status(404).json({ error: '兑换码不存在' });
+    return c.json({ error: '兑换码不存在' }, 404);
   }
 
   if (record.status === 'used') {
-    return res.status(400).json({ error: '兑换码已被使用' });
+    return c.json({ error: '兑换码已被使用' }, 400);
   }
 
-  return res.json({
+  return c.json({
     valid: true,
     amount: record.amount,
     code: record.code,
   });
 });
 
-router.post('/redeem/consume', async (req, res) => {
-  const prisma = getPrisma();
-  const { code, user_id } = req.body as { code?: string; user_id?: string };
+app.post('/redeem/consume', async (c) => {
+  const prisma = c.get('prisma');
+  const { code, user_id } = await c.req.json<{ code?: string; user_id?: string }>();
 
   if (!code) {
-    return res.status(400).json({ error: '缺少兑换码' });
+    return c.json({ error: '缺少兑换码' }, 400);
   }
 
   const normalized = code.trim().toUpperCase().replace(/-/g, '');
@@ -72,15 +72,15 @@ router.post('/redeem/consume', async (req, res) => {
       return updated;
     });
 
-    return res.json({
+    return c.json({
       success: true,
       amount: result.amount,
       code: result.code,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : '核销失败';
-    return res.status(400).json({ error: message });
+    return c.json({ error: message }, 400);
   }
 });
 
-export default router;
+export default app;
