@@ -1,0 +1,22 @@
+name = "wowpay"
+main = "src/index.ts"
+compatibility_date = "2025-09-05"
+compatibility_flags = ["nodejs_compat"]
+
+# D1 数据库绑定
+[[d1_databases]]
+binding = "DB"
+database_name = "wowpay-db"
+database_id = "b54588b9-b255-4c94-9a94-525aa4e54e43"
+
+# 静态资源（HTML 页面等）
+[assets]
+directory = "./public"
+
+# 非敏感环境变量
+[vars]
+BASE_URL = "https://model.wochengtv.net:9312"
+YIPAY_URL = "https://api-4uin34any8sg.zhifu.fm.it88168.com/api/submit.php"
+YIPAY_PID = "638064777360719872"
+
+# 敏感变量请使用 wrangler secret put YIPAY_KEY

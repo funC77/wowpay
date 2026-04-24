@@ -1,0 +1,37 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model PaymentOrder {
+  id        String   @id
+  userId    String   @map("user_id")
+  amount    Float
+  status    String   @default("pending")
+  paidAt    DateTime? @map("paid_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  redeemCode RedeemCode?
+
+  @@map("payment_orders")
+}
+
+model RedeemCode {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique
+  orderId   String   @unique @map("order_id")
+  userId    String   @map("user_id")
+  amount    Float
+  status    String   @default("unused")
+  createdAt DateTime @default(now()) @map("created_at")
+  usedAt    DateTime? @map("used_at")
+
+  order PaymentOrder @relation(fields: [orderId], references: [id])
+
+  @@index([code])
+  @@map("redeem_codes")
+}

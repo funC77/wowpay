@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>支付成功</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f5f5f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .container {
+      background: #fff;
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 480px;
+      text-align: center;
+    }
+    .icon {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 20px;
+      background: #52c41a;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 32px;
+    }
+    h1 { font-size: 22px; margin-bottom: 8px; color: #333; }
+    .desc { color: #888; margin-bottom: 24px; font-size: 14px; }
+    .code-box {
+      background: #f6ffed;
+      border: 1px dashed #b7eb8f;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .code-label { font-size: 12px; color: #888; margin-bottom: 8px; }
+    .code-value {
+      font-size: 28px;
+      font-weight: bold;
+      color: #52c41a;
+      letter-spacing: 2px;
+      font-family: "Courier New", monospace;
+      word-break: break-all;
+    }
+    .copy-btn {
+      margin-top: 12px;
+      padding: 8px 24px;
+      background: #52c41a;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .copy-btn:hover { background: #389e0d; }
+    .loading {
+      padding: 40px;
+      color: #888;
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #1677ff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .hidden { display: none; }
+    .tip {
+      margin-top: 16px;
+      font-size: 12px;
+      color: #999;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="loading" class="loading">
+      <div class="spinner"></div>
+      <p>正在处理支付结果...</p>
+    </div>
+
+    <div id="result" class="hidden">
+      <div class="icon">&#10003;</div>
+      <h1>支付成功</h1>
+      <p class="desc">请复制下方兑换码，返回平台A进行兑换</p>
+      <div class="code-box">
+        <div class="code-label">您的兑换码</div>
+        <div class="code-value" id="code"></div>
+        <button class="copy-btn" id="copyBtn">复制兑换码</button>
+      </div>
+      <p class="tip">兑换码有效期30天，请及时使用<br>如有问题请联系客服</p>
+    </div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const orderId = params.get('orderId');
+
+    if (!orderId) {
+      document.getElementById('loading').innerHTML = '<p>缺少订单信息</p>';
+      throw new Error('Missing orderId');
+    }
+
+    async function pollCode() {
+      try {
+        const res = await fetch(`/api/pay/code?orderId=${orderId}`);
+        const data = await res.json();
+
+        if (data.status === 'paid' && data.code) {
+          document.getElementById('loading').classList.add('hidden');
+          document.getElementById('result').classList.remove('hidden');
+          document.getElementById('code').textContent = data.code;
+          return;
+        }
+      } catch (e) {
+        console.error('查询失败', e);
+      }
+
+      // 每2秒轮询一次，最多30次（60秒）
+      setTimeout(pollCode, 2000);
+    }
+
+    pollCode();
+
+    document.getElementById('copyBtn').addEventListener('click', () => {
+      const code = document.getElementById('code').textContent;
+      navigator.clipboard.writeText(code).then(() => {
+        const btn = document.getElementById('copyBtn');
+        btn.textContent = '已复制';
+        setTimeout(() => btn.textContent = '复制兑换码', 2000);
+      });
+    });
+  </script>
+</body>
+</html>
