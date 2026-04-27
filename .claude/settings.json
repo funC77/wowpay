@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -X POST http://127.0.0.1:8787/api/notify -H 'Content-Type: application/x-www-form-urlencoded' -d 'orderNo=17772604086712424&platformOrderNo=642772531186647040&amount=50.00&sign=9e614709fb0afe7dcec227eedacd9d98')",
+      "Bash(curl \"http://127.0.0.1:8787/api/query?orderNo=17772604086712424\")",
+      "Bash(curl -X POST http://127.0.0.1:8787/api/redeem -H 'Content-Type: application/json' -d '{\"code\":\"50-86b343b6-2e29-45ea-b550-1a668522d538\"}')"
+    ]
+  }
+}

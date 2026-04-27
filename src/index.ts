@@ -51,7 +51,7 @@ const HTML_PAGE = `<!DOCTYPE html>
           <!-- 动态生成 -->
         </div>
       </div>
-      <button type="submit" id="submitBtn" disabled>创建订单</button>
+      <button type="submit" id="submitBtn" disabled>立即支付</button>
     </form>
     <div id="result" class="result"></div>
   </div>
@@ -105,10 +105,9 @@ const HTML_PAGE = `<!DOCTYPE html>
         return;
       }
 
-      const resultDiv = document.getElementById('result');
       const submitBtn = document.getElementById('submitBtn');
       submitBtn.disabled = true;
-      submitBtn.textContent = '创建中...';
+      submitBtn.textContent = '跳转中...';
 
       try {
         const response = await fetch(\`/api/create?userId=\${encodeURIComponent(userId)}\`, {
@@ -119,35 +118,23 @@ const HTML_PAGE = `<!DOCTYPE html>
         const data = await response.json();
 
         if (data.success) {
-          resultDiv.className = 'result show success';
-          resultDiv.innerHTML = \`
-            <h3>订单创建成功</h3>
-            <div class="result-item">
-              <div class="result-label">订单号</div>
-              <div class="result-value">\${data.data.orderNo}</div>
-            </div>
-            <div class="result-item">
-              <div class="result-label">充值金额</div>
-              <div class="result-value">¥\${data.data.amount}</div>
-            </div>
-            <div class="result-item">
-              <div class="result-label">有效期至</div>
-              <div class="result-value">\${new Date(data.data.expiresAt).toLocaleString('zh-CN')}</div>
-            </div>
-            <button class="pay-btn" onclick="window.open('\${data.data.payUrl}', '_blank')">前往支付</button>
-            <button class="pay-btn" onclick="queryOrder('\${data.data.orderNo}')" style="background:#007bff;margin-top:10px;">查询兑换码</button>
-          \`;
+          // 直接跳转到支付页面
+          window.location.href = data.data.payUrl;
         } else {
+          const resultDiv = document.getElementById('result');
           resultDiv.className = 'result show error';
           resultDiv.innerHTML = \`<h3>创建失败</h3><p>\${data.msg}</p>\${data.allowedAmounts ? '<p>允许的金额：' + data.allowedAmounts.join(', ') + '</p>' : ''}\`;
+          submitBtn.disabled = false;
+          submitBtn.textContent = '立即支付';
         }
       } catch (error) {
+        const resultDiv = document.getElementById('result');
         resultDiv.className = 'result show error';
         resultDiv.innerHTML = \`<h3>请求失败</h3><p>\${error.message}</p>\`;
-      } finally {
         submitBtn.disabled = false;
-        submitBtn.textContent = '创建订单';
+        submitBtn.textContent = '立即支付';
       }
+    });
     });
 
     async function queryOrder(orderNo) {
