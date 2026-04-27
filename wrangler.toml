@@ -1,4 +1,4 @@
-name = "wowpay2"
+name = "wowpay"
 main = "src/index.ts"
 compatibility_date = "2026-04-26"
 
