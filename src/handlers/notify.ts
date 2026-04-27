@@ -1,6 +1,6 @@
 import { verifyNotifySign } from '../utils/crypto';
 import { getOrderByMerchantOrderNo, updateOrderToPaid } from '../services/database';
-import { generateUUID } from '../utils/codeGenerator';
+import { generateRedemptionCode } from '../utils/codeGenerator';
 
 export async function handleNotify(request: Request, env: Env): Promise<Response> {
   try {
@@ -57,7 +57,8 @@ export async function handleNotify(request: Request, env: Env): Promise<Response
       return new Response('success');
     }
 
-    const redemptionCode = generateUUID();
+    // 生成包含金额信息的兑换码
+    const redemptionCode = generateRedemptionCode(order.amount);
     const paidAt = Date.now();
 
     console.log('Updating order to paid with redemption code:', redemptionCode);

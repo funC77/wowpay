@@ -12,3 +12,5 @@ MERCHANT_NUM = "638064777360719872"
 API_BASE_URL = "https://api-4uin34any8sg.zhifu.fm.it88168.com/api"
 PAY_TYPE = "alipay"
 NOTIFY_URL = "https://wowpay.cursor02.workers.dev/api/notify"
+# 固定金额档位（逗号分隔）
+FIXED_AMOUNTS = "10,30,50,100,200"

@@ -4,12 +4,33 @@ import { generateOrderNo } from '../utils/codeGenerator';
 
 export async function handleCreateOrder(request: Request, env: Env): Promise<Response> {
   try {
-    const body = await request.json<{ userId: string; amount: number }>();
+    // 从 URL 参数获取 userId（由上游平台传递，不可前端修改）
+    const url = new URL(request.url);
+    const userId = url.searchParams.get('userId');
 
-    if (!body.userId || !body.amount || body.amount <= 0) {
+    const body = await request.json<{ amount: number }>();
+
+    if (!userId) {
       return Response.json({
         success: false,
-        msg: 'Invalid parameters'
+        msg: 'Missing userId parameter in URL'
+      }, { status: 400 });
+    }
+
+    if (!body.amount || body.amount <= 0) {
+      return Response.json({
+        success: false,
+        msg: 'Invalid amount'
+      }, { status: 400 });
+    }
+
+    // 验证金额是否在固定档位中
+    const fixedAmounts = env.FIXED_AMOUNTS.split(',').map(a => parseFloat(a.trim()));
+    if (!fixedAmounts.includes(body.amount)) {
+      return Response.json({
+        success: false,
+        msg: `Amount must be one of: ${fixedAmounts.join(', ')}`,
+        allowedAmounts: fixedAmounts
       }, { status: 400 });
     }
 
@@ -45,7 +66,7 @@ export async function handleCreateOrder(request: Request, env: Env): Promise<Res
     }
 
     await createOrder(env.DB, {
-      user_id: body.userId,
+      user_id: userId,
       amount: body.amount,
       merchant_order_no: merchantOrderNo,
       pay_url: paymentResult.data.payUrl,
