@@ -64,12 +64,16 @@ const HTML_PAGE = `<!DOCTYPE html>
     const urlParams = new URLSearchParams(window.location.search);
     userId = urlParams.get('userId');
 
+    // 立即更新用户信息显示
+    const userInfoDiv = document.getElementById('userInfo');
+    const warningBoxDiv = document.getElementById('warningBox');
+
     if (!userId) {
-      document.getElementById('warningBox').innerHTML = '<div class="warning">⚠️ 缺少用户ID参数。请通过正确的链接访问，例如：?userId=your_user_id</div>';
-      document.getElementById('userInfo').textContent = '未识别用户';
+      warningBoxDiv.innerHTML = '<div class="warning">⚠️ 缺少用户ID参数。请通过正确的链接访问，例如：?userId=your_user_id</div>';
+      userInfoDiv.textContent = '未识别用户';
       document.getElementById('submitBtn').disabled = true;
     } else {
-      document.getElementById('userInfo').innerHTML = \`当前用户：<strong>\${userId}</strong>\`;
+      userInfoDiv.innerHTML = \`当前用户：<strong>\${userId}</strong>\`;
     }
 
     // 生成金额选项
@@ -134,7 +138,6 @@ const HTML_PAGE = `<!DOCTYPE html>
         submitBtn.disabled = false;
         submitBtn.textContent = '立即支付';
       }
-    });
     });
 
     async function queryOrder(orderNo) {
