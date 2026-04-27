@@ -1,14 +1,14 @@
-name = "wowpay2"
+name = "wowpay"
 main = "src/index.ts"
 compatibility_date = "2026-04-26"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "wowpay2_db"
-database_id = "6d6b34d2-965b-46c0-bedd-7ece95524edf"
+database_name = "wowpay_db"
+database_id = "762c4edc-f000-4be5-915c-4a9f7b639a58"
 
 [vars]
 MERCHANT_NUM = "638064777360719872"
 API_BASE_URL = "https://api-4uin34any8sg.zhifu.fm.it88168.com/api"
 PAY_TYPE = "alipay"
-NOTIFY_URL = "https://model.wochengtv.net:9312/api/notify"
+NOTIFY_URL = "https://wowpay.cursor02.workers.dev/api/notify"
