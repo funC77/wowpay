@@ -1,0 +1,25 @@
+node_modules/
+.wrangler/
+dist/
+.dev.vars
+.env
+*.log
+.DS_Store
+wrangler.toml.local
+
+# Test files
+test-*.js
+test-*.ts
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+
+# Cloned projects for reference
+new-api/
+
